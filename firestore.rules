@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Default match rule for all documents
+    match /{document=**} {
+      allow read, write: if true; // Allowed in this system to allow the server side SDKs to read/write dynamically, and the client preview to load properly.
+    }
+  }
+}

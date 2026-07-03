@@ -1,0 +1,42 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+web_stage/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+
+# Local databases & storage (prevents local DB overrides on GitHub / Vercel)
+*_db.json
+shopee_settings.json
+users_db.json
+transactions_db.json
+products_db.json
+activity_products_db.json
+match_requests_db.json
+.data/
+.firebase/
+.vercel/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Debug and system logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+.DS_Store
+Thumbs.db
