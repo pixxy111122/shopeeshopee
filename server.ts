@@ -6,8 +6,12 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import dotenv from 'dotenv';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+
+// Initialize dotenv environment variables
+dotenv.config();
 
 const app = express();
 const PORT = 3000;
@@ -804,67 +808,76 @@ app.get('/api/settings', async (req, res) => {
 });
 
 app.post('/api/settings', (req, res) => {
-  const {
-    actorPhone,
-    siteName, siteLogo, siteIcon, themeColor, slides, lineUrl, whatsappUrl, facebookUrl, tiktokUrl,
-    shopeefoodLogo, shopeefoodUrl, shopeefoodLabel, shopeefoodSubLabel,
-    freeshippingLogo, freeshippingUrl, freeshippingLabel, freeshippingSubLabel,
-    paydayLogo, paydayUrl, paydayLabel, paydaySubLabel,
-    instantLogo, instantUrl, instantLabel, instantSubLabel,
-    flashdealLogo, flashdealUrl, flashdealLabel, flashdealSubLabel
-  } = req.body;
+  try {
+    const {
+      actorPhone,
+      siteName, siteLogo, siteIcon, themeColor, slides, lineUrl, whatsappUrl, facebookUrl, tiktokUrl,
+      shopeefoodLogo, shopeefoodUrl, shopeefoodLabel, shopeefoodSubLabel,
+      freeshippingLogo, freeshippingUrl, freeshippingLabel, freeshippingSubLabel,
+      paydayLogo, paydayUrl, paydayLabel, paydaySubLabel,
+      instantLogo, instantUrl, instantLabel, instantSubLabel,
+      flashdealLogo, flashdealUrl, flashdealLabel, flashdealSubLabel
+    } = req.body;
 
-  if (!actorPhone) {
-    return res.status(400).json({ error: 'ไม่พบข้อมูลผู้ดำเนินการ (actorPhone) กรุณาเข้าสู่ระบบแอดมินก่อนค่ะ' });
+    if (!actorPhone) {
+      return res.status(400).json({ error: 'ไม่พบข้อมูลผู้ดำเนินการ (actorPhone) กรุณาเข้าสู่ระบบแอดมินก่อนค่ะ' });
+    }
+
+    usersCache = loadUsers();
+    const actor = usersCache.find(u => u.phone === actorPhone);
+    if (!actor || actor.role !== 'admin') {
+      return res.status(403).json({ error: 'เฉพาะบัญชีแอดมินหรือผู้ดูแลระบบระดับสูงเท่านั้นที่มีสิทธิ์แก้ไขข้อมูลการตั้งค่าระบบและปุ่มบริการค่ะ' });
+    }
+
+    settingsCache = {
+      siteName: siteName || settingsCache.siteName,
+      siteLogo: siteLogo !== undefined ? siteLogo : settingsCache.siteLogo,
+      siteIcon: siteIcon !== undefined ? siteIcon : settingsCache.siteIcon,
+      themeColor: themeColor || settingsCache.themeColor,
+      slides: slides || settingsCache.slides,
+      lineUrl: lineUrl !== undefined ? lineUrl : settingsCache.lineUrl,
+      whatsappUrl: whatsappUrl !== undefined ? whatsappUrl : settingsCache.whatsappUrl,
+      facebookUrl: facebookUrl !== undefined ? facebookUrl : settingsCache.facebookUrl,
+      tiktokUrl: tiktokUrl !== undefined ? tiktokUrl : settingsCache.tiktokUrl,
+      
+      shopeefoodLogo: shopeefoodLogo !== undefined ? shopeefoodLogo : settingsCache.shopeefoodLogo,
+      shopeefoodUrl: shopeefoodUrl !== undefined ? shopeefoodUrl : settingsCache.shopeefoodUrl,
+      shopeefoodLabel: shopeefoodLabel !== undefined ? shopeefoodLabel : settingsCache.shopeefoodLabel,
+      shopeefoodSubLabel: shopeefoodSubLabel !== undefined ? shopeefoodSubLabel : settingsCache.shopeefoodSubLabel,
+
+      freeshippingLogo: freeshippingLogo !== undefined ? freeshippingLogo : settingsCache.freeshippingLogo,
+      freeshippingUrl: freeshippingUrl !== undefined ? freeshippingUrl : settingsCache.freeshippingUrl,
+      freeshippingLabel: freeshippingLabel !== undefined ? freeshippingLabel : settingsCache.freeshippingLabel,
+      freeshippingSubLabel: freeshippingSubLabel !== undefined ? freeshippingSubLabel : settingsCache.freeshippingSubLabel,
+
+      paydayLogo: paydayLogo !== undefined ? paydayLogo : settingsCache.paydayLogo,
+      paydayUrl: paydayUrl !== undefined ? paydayUrl : settingsCache.paydayUrl,
+      paydayLabel: paydayLabel !== undefined ? paydayLabel : settingsCache.paydayLabel,
+      paydaySubLabel: paydaySubLabel !== undefined ? paydaySubLabel : settingsCache.paydaySubLabel,
+
+      instantLogo: instantLogo !== undefined ? instantLogo : settingsCache.instantLogo,
+      instantUrl: instantUrl !== undefined ? instantUrl : settingsCache.instantUrl,
+      instantLabel: instantLabel !== undefined ? instantLabel : settingsCache.instantLabel,
+      instantSubLabel: instantSubLabel !== undefined ? instantSubLabel : settingsCache.instantSubLabel,
+
+      flashdealLogo: flashdealLogo !== undefined ? flashdealLogo : settingsCache.flashdealLogo,
+      flashdealUrl: flashdealUrl !== undefined ? flashdealUrl : settingsCache.flashdealUrl,
+      flashdealLabel: flashdealLabel !== undefined ? flashdealLabel : settingsCache.flashdealLabel,
+      flashdealSubLabel: flashdealSubLabel !== undefined ? flashdealSubLabel : settingsCache.flashdealSubLabel
+    };
+    const success = saveSettings(settingsCache);
+    if (!success) {
+      return res.status(500).json({ error: 'ไม่สามารถบันทึกข้อมูลการตั้งค่าระบบได้' });
+    }
+    res.json({ message: 'บันทึกการตั้งค่าระบบเรียบร้อยแล้วค่ะ', settings: settingsCache });
+  } catch (error: any) {
+    console.error("Save Settings Error Details:", error.message || error);
+    res.status(500).json({
+      success: false,
+      error: "เกิดข้อผิดพลาดในการบันทึกการตั้งค่าระบบหลังบ้าน",
+      debugMessage: error.message || String(error)
+    });
   }
-
-  usersCache = loadUsers();
-  const actor = usersCache.find(u => u.phone === actorPhone);
-  if (!actor || actor.role !== 'admin') {
-    return res.status(403).json({ error: 'เฉพาะบัญชีแอดมินหรือผู้ดูแลระบบระดับสูงเท่านั้นที่มีสิทธิ์แก้ไขข้อมูลการตั้งค่าระบบและปุ่มบริการค่ะ' });
-  }
-
-  settingsCache = {
-    siteName: siteName || settingsCache.siteName,
-    siteLogo: siteLogo !== undefined ? siteLogo : settingsCache.siteLogo,
-    siteIcon: siteIcon !== undefined ? siteIcon : settingsCache.siteIcon,
-    themeColor: themeColor || settingsCache.themeColor,
-    slides: slides || settingsCache.slides,
-    lineUrl: lineUrl !== undefined ? lineUrl : settingsCache.lineUrl,
-    whatsappUrl: whatsappUrl !== undefined ? whatsappUrl : settingsCache.whatsappUrl,
-    facebookUrl: facebookUrl !== undefined ? facebookUrl : settingsCache.facebookUrl,
-    tiktokUrl: tiktokUrl !== undefined ? tiktokUrl : settingsCache.tiktokUrl,
-    
-    shopeefoodLogo: shopeefoodLogo !== undefined ? shopeefoodLogo : settingsCache.shopeefoodLogo,
-    shopeefoodUrl: shopeefoodUrl !== undefined ? shopeefoodUrl : settingsCache.shopeefoodUrl,
-    shopeefoodLabel: shopeefoodLabel !== undefined ? shopeefoodLabel : settingsCache.shopeefoodLabel,
-    shopeefoodSubLabel: shopeefoodSubLabel !== undefined ? shopeefoodSubLabel : settingsCache.shopeefoodSubLabel,
-
-    freeshippingLogo: freeshippingLogo !== undefined ? freeshippingLogo : settingsCache.freeshippingLogo,
-    freeshippingUrl: freeshippingUrl !== undefined ? freeshippingUrl : settingsCache.freeshippingUrl,
-    freeshippingLabel: freeshippingLabel !== undefined ? freeshippingLabel : settingsCache.freeshippingLabel,
-    freeshippingSubLabel: freeshippingSubLabel !== undefined ? freeshippingSubLabel : settingsCache.freeshippingSubLabel,
-
-    paydayLogo: paydayLogo !== undefined ? paydayLogo : settingsCache.paydayLogo,
-    paydayUrl: paydayUrl !== undefined ? paydayUrl : settingsCache.paydayUrl,
-    paydayLabel: paydayLabel !== undefined ? paydayLabel : settingsCache.paydayLabel,
-    paydaySubLabel: paydaySubLabel !== undefined ? paydaySubLabel : settingsCache.paydaySubLabel,
-
-    instantLogo: instantLogo !== undefined ? instantLogo : settingsCache.instantLogo,
-    instantUrl: instantUrl !== undefined ? instantUrl : settingsCache.instantUrl,
-    instantLabel: instantLabel !== undefined ? instantLabel : settingsCache.instantLabel,
-    instantSubLabel: instantSubLabel !== undefined ? instantSubLabel : settingsCache.instantSubLabel,
-
-    flashdealLogo: flashdealLogo !== undefined ? flashdealLogo : settingsCache.flashdealLogo,
-    flashdealUrl: flashdealUrl !== undefined ? flashdealUrl : settingsCache.flashdealUrl,
-    flashdealLabel: flashdealLabel !== undefined ? flashdealLabel : settingsCache.flashdealLabel,
-    flashdealSubLabel: flashdealSubLabel !== undefined ? flashdealSubLabel : settingsCache.flashdealSubLabel
-  };
-  const success = saveSettings(settingsCache);
-  if (!success) {
-    return res.status(500).json({ error: 'ไม่สามารถบันทึกข้อมูลการตั้งค่าระบบได้' });
-  }
-  res.json({ message: 'บันทึกการตั้งค่าระบบเรียบร้อยแล้วค่ะ', settings: settingsCache });
 });
 
 // --- HOME PRODUCTS ENDPOINTS ---
@@ -1185,147 +1198,165 @@ app.get('/api/users/profile', async (req, res) => {
 
 // 1. User Login Route
 app.post('/api/auth/login', async (req, res) => {
-  const { phone, password } = req.body;
+  try {
+    const { phone, password } = req.body;
 
-  if (!phone || !password) {
-    return res.status(400).json({ error: 'กรุณากรอกเบอร์โทรศัพท์และรหัสผ่าน' });
-  }
-
-  // Refresh cache
-  usersCache = loadUsers();
-  let user = usersCache.find(u => u.phone === phone);
-
-  if (!user && firebaseDb && isFirebaseReady) {
-    try {
-      const doc = await firebaseDb.collection('users').doc(phone).get();
-      if (doc.exists) {
-        user = doc.data() as UserAccount;
-        if (!usersCache.some(u => u.phone === phone)) {
-          usersCache.push(user);
-          fs.writeFileSync(DB_FILE, JSON.stringify(usersCache, null, 2), 'utf-8');
-        }
-      }
-    } catch (err) {
-      console.error('[Firebase] Direct login fetch failed:', err);
+    if (!phone || !password) {
+      return res.status(400).json({ error: 'กรุณากรอกเบอร์โทรศัพท์และรหัสผ่าน' });
     }
-  }
 
-  if (!user) {
-    return res.status(401).json({ error: 'ไม่พบบัญชีผู้ใช้งานนี้ในระบบหลังบ้านค่ะ' });
-  }
+    // Refresh cache
+    usersCache = loadUsers();
+    let user = usersCache.find(u => u.phone === phone);
 
-  if (user.passwordHash !== password) {
-    return res.status(401).json({ error: 'รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง' });
-  }
+    if (!user && firebaseDb && isFirebaseReady) {
+      try {
+        const doc = await firebaseDb.collection('users').doc(phone).get();
+        if (doc.exists) {
+          user = doc.data() as UserAccount;
+          if (!usersCache.some(u => u.phone === phone)) {
+            usersCache.push(user);
+            fs.writeFileSync(DB_FILE, JSON.stringify(usersCache, null, 2), 'utf-8');
+          }
+        }
+      } catch (err: any) {
+        console.error('[Firebase] Direct login fetch failed:', err.message || err);
+      }
+    }
 
-  if (user.isBanned) {
-    return res.status(403).json({ error: 'บัญชีคุณถูกแบน โปรดติดต่อฝ่ายบริการลูกค้า' });
-  }
+    if (!user) {
+      return res.status(401).json({ error: 'ไม่พบบัญชีผู้ใช้งานนี้ในระบบหลังบ้านค่ะ' });
+    }
 
-  if (user.isBlocked) {
-    return res.status(403).json({ error: 'บัญชีคุณถูกอายัด โปรดติดต่อฝ่ายบริการลูกค้า' });
-  }
+    if (user.passwordHash !== password) {
+      return res.status(401).json({ error: 'รหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง' });
+    }
 
-  // Return user details without sensitive hashes if desired, but we can return full safe info
-  const { passwordHash, ...safeUser } = user;
-  res.json({ message: 'เข้าสู่ระบบสำเร็จ', user: { ...safeUser, rawPassword: passwordHash } });
+    if (user.isBanned) {
+      return res.status(403).json({ error: 'บัญชีคุณถูกแบน โปรดติดต่อฝ่ายบริการลูกค้า' });
+    }
+
+    if (user.isBlocked) {
+      return res.status(403).json({ error: 'บัญชีคุณถูกอายัด โปรดติดต่อฝ่ายบริการลูกค้า' });
+    }
+
+    // Return user details without sensitive hashes if desired, but we can return full safe info
+    const { passwordHash, ...safeUser } = user;
+    res.json({ message: 'เข้าสู่ระบบสำเร็จ', user: { ...safeUser, rawPassword: passwordHash } });
+  } catch (error: any) {
+    console.error("Login Error Details:", error.message || error);
+    res.status(500).json({
+      success: false,
+      error: "ขออภัยด้วยค่ะ ระบบหลังบ้านเกิดข้อผิดพลาดในการตรวจสอบข้อมูลล็อกอิน",
+      debugMessage: error.message || String(error)
+    });
+  }
 });
 
 // 2. User Registration Route (With country detection from invitation code)
 app.post('/api/auth/register', (req, res) => {
-  const { username, phone, bankName, realName, bankAccount, password, invitationCode } = req.body;
+  try {
+    const { username, phone, bankName, realName, bankAccount, password, invitationCode } = req.body;
 
-  if (!username || !phone || !password || !invitationCode) {
-    return res.status(400).json({ error: 'กรุณากรอกข้อมูลส่วนตัวและรหัสเชิญให้ครบทุกช่องค่ะ' });
-  }
+    if (!username || !phone || !password || !invitationCode) {
+      return res.status(400).json({ error: 'กรุณากรอกข้อมูลส่วนตัวและรหัสเชิญให้ครบทุกช่องค่ะ' });
+    }
 
-  if (phone.length !== 10 || !/^\d+$/.test(phone)) {
-    return res.status(400).json({ error: 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลักเท่านั้นค่ะ' });
-  }
+    if (phone.length !== 10 || !/^\d+$/.test(phone)) {
+      return res.status(400).json({ error: 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลักเท่านั้นค่ะ' });
+    }
 
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษรค่ะ' });
-  }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษรค่ะ' });
+    }
 
-  if (invitationCode.trim().length < 4) {
-    return res.status(400).json({ error: 'รหัสเชิญไม่ถูกต้อง (รหัสเชิญต้องมีความยาวอย่างน้อย 4 ตัวขึ้นไปค่ะ เช่น th3585 หรือ lo4385)' });
-  }
+    if (invitationCode.trim().length < 4) {
+      return res.status(400).json({ error: 'รหัสเชิญไม่ถูกต้อง (รหัสเชิญต้องมีความยาวอย่างน้อย 4 ตัวขึ้นไปค่ะ เช่น th3585 หรือ lo4385)' });
+    }
 
-  // Determine country from invitation code
-  const codeTrimmed = invitationCode.trim();
-  let detectedCountry: 'Thailand' | 'Laos' = 'Thailand';
-  if (codeTrimmed === 'lo4385') {
-    detectedCountry = 'Laos';
-  } else if (codeTrimmed === 'th3585') {
-    detectedCountry = 'Thailand';
-  }
+    // Determine country from invitation code
+    const codeTrimmed = invitationCode.trim();
+    let detectedCountry: 'Thailand' | 'Laos' = 'Thailand';
+    if (codeTrimmed === 'lo4385') {
+      detectedCountry = 'Laos';
+    } else if (codeTrimmed === 'th3585') {
+      detectedCountry = 'Thailand';
+    }
 
-  // Refresh cache and check duplicates
-  usersCache = loadUsers();
-  const duplicate = usersCache.some(u => u.phone === phone);
-  if (duplicate) {
-    return res.status(409).json({ error: 'เบอร์โทรศัพท์นี้ถูกใช้ลงทะเบียนไปแล้วค่ะ' });
-  }
+    // Refresh cache and check duplicates
+    usersCache = loadUsers();
+    const duplicate = usersCache.some(u => u.phone === phone);
+    if (duplicate) {
+      return res.status(409).json({ error: 'เบอร์โทรศัพท์นี้ถูกใช้ลงทะเบียนไปแล้วค่ะ' });
+    }
 
-  const newUser: UserAccount = {
-    username,
-    phone,
-    bankName: bankName || '',
-    realName: realName || '',
-    bankAccount: bankAccount || '',
-    passwordHash: password,
-    transactionPassword: '999999',
-    role: 'customer', // Front-end registration is always client role
-    balance: 0.00, // Start balance
-    commission: 0.00, // Initial commissions
-    frozen: 0.00,
-    ordersCompleted: 0,
-    level: -1, // Level Member
-    isBlocked: false,
-    isBanned: false,
-    createdAt: new Date().toISOString(),
-    invitationCode: codeTrimmed,
-    accountCategory: 'customer',
-    country: detectedCountry,
-    latestDepositAmount: 0
-  };
+    const newUser: UserAccount = {
+      username,
+      phone,
+      bankName: bankName || '',
+      realName: realName || '',
+      bankAccount: bankAccount || '',
+      passwordHash: password,
+      transactionPassword: '999999',
+      role: 'customer', // Front-end registration is always client role
+      balance: 0.00, // Start balance
+      commission: 0.00, // Initial commissions
+      frozen: 0.00,
+      ordersCompleted: 0,
+      level: -1, // Level Member
+      isBlocked: false,
+      isBanned: false,
+      createdAt: new Date().toISOString(),
+      invitationCode: codeTrimmed,
+      accountCategory: 'customer',
+      country: detectedCountry,
+      latestDepositAmount: 0
+    };
 
-  // Reset/clear transactions and match requests for newly registered phone
-  let txs = loadTransactions();
-  const matchedTxs = txs.filter(t => t.phone === phone);
-  if (matchedTxs.length > 0) {
-    txs = txs.filter(t => t.phone !== phone);
-    saveTransactions(txs);
-    if (firebaseDb && isFirebaseReady) {
-      matchedTxs.forEach(tx => {
-        firebaseDb.collection('transactions').doc(tx.id).delete().catch((err: any) => {
-          console.error('[Firebase] Error deleting old tx from Firestore during registration:', err);
+    // Reset/clear transactions and match requests for newly registered phone
+    let txs = loadTransactions();
+    const matchedTxs = txs.filter(t => t.phone === phone);
+    if (matchedTxs.length > 0) {
+      txs = txs.filter(t => t.phone !== phone);
+      saveTransactions(txs);
+      if (firebaseDb && isFirebaseReady) {
+        matchedTxs.forEach(tx => {
+          firebaseDb.collection('transactions').doc(tx.id).delete().catch((err: any) => {
+            console.error('[Firebase] Error deleting old tx from Firestore during registration:', err);
+          });
         });
-      });
+      }
     }
-  }
 
-  let matches = loadMatchRequests();
-  const matchedReqs = matches.filter(m => m.phone === phone);
-  if (matchedReqs.length > 0) {
-    matches = matches.filter(m => m.phone !== phone);
-    saveMatchRequests(matches);
-    if (firebaseDb && isFirebaseReady) {
-      firebaseDb.collection('match_requests').doc(phone).delete().catch((err: any) => {
-        console.error('[Firebase] Error deleting old match request from Firestore during registration:', err);
-      });
+    let matches = loadMatchRequests();
+    const matchedReqs = matches.filter(m => m.phone === phone);
+    if (matchedReqs.length > 0) {
+      matches = matches.filter(m => m.phone !== phone);
+      saveMatchRequests(matches);
+      if (firebaseDb && isFirebaseReady) {
+        firebaseDb.collection('match_requests').doc(phone).delete().catch((err: any) => {
+          console.error('[Firebase] Error deleting old match request from Firestore during registration:', err);
+        });
+      }
     }
+
+    usersCache.push(newUser);
+    const success = saveUsers(usersCache);
+
+    if (!success) {
+      return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกบัญชีของท่านในเซิร์ฟเวอร์หลังบ้าน' });
+    }
+
+    const { passwordHash, ...safeUser } = newUser;
+    res.status(201).json({ message: 'สมัครสมาชิกสำเร็จเรียบร้อยแล้วค่ะ!', user: { ...safeUser, rawPassword: passwordHash } });
+  } catch (error: any) {
+    console.error("Register Error Details:", error.message || error);
+    res.status(500).json({
+      success: false,
+      error: "ขออภัยด้วยค่ะ ระบบหลังบ้านเกิดข้อผิดพลาดในการสมัครสมาชิก",
+      debugMessage: error.message || String(error)
+    });
   }
-
-  usersCache.push(newUser);
-  const success = saveUsers(usersCache);
-
-  if (!success) {
-    return res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกบัญชีของท่านในเซิร์ฟเวอร์หลังบ้าน' });
-  }
-
-  const { passwordHash, ...safeUser } = newUser;
-  res.status(201).json({ message: 'สมัครสมาชิกสำเร็จเรียบร้อยแล้วค่ะ!', user: { ...safeUser, rawPassword: passwordHash } });
 });
 
 // 3. Sync User Stats and Balances
